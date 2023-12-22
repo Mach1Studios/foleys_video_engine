@@ -34,7 +34,7 @@ target_compile_definitions (foleys_video_engine INTERFACE
                 JUCE_PLUGINHOST_VST3=1 
                 JUCE_PLUGINHOST_LADSPA=1)
 
-target_link_libraries (foleys_video_engine INTERFACE FFmpeg::FFmpeg)
+target_link_libraries (foleys_video_engine INTERFACE ffmpeg::ffmpeg)
 
 #
 
