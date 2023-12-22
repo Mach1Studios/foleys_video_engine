@@ -29,14 +29,14 @@ elseif (${CMAKE_SYSTEM_NAME} STREQUAL "Windows" AND ${CMAKE_SYSTEM_PROCESSOR} ST
         message(FATAL_ERROR "Platform ${CMAKE_SYSTEM_PROCESSOR} on system ${CMAKE_SYSTEM_NAME} is not supported!")
     endif()
 
-    if (NOT "${PROJECT_BINARY_DIR}/.local" IN_LIST "${CMAKE_PREFIX_PATH}")
-        list(APPEND CMAKE_PREFIX_PATH "${PROJECT_BINARY_DIR}/.local")
+    if (NOT "${PROJECT_BINARY_DIR}/_deps/ffmpeg-build" IN_LIST "${CMAKE_PREFIX_PATH}")
+        list(APPEND CMAKE_PREFIX_PATH "${PROJECT_BINARY_DIR}/_deps/ffmpeg-build")
     endif()
-    message(STATUS "ffmpeg download path: ${PROJECT_BINARY_DIR}/.local")
+    message(STATUS "ffmpeg download path: ${PROJECT_BINARY_DIR}/_deps/ffmpeg-build")
 
     FetchContent_Declare(ffmpeg
         URL  "https://github.com/BtbN/ffmpeg-Builds/releases/download/latest/${BUILT_ffmpeg_RELEASE}"
-        SOURCE_DIR "${PROJECT_BINARY_DIR}/.local"  
+        SOURCE_DIR "${PROJECT_BINARY_DIR}/_deps/ffmpeg-build"  
     )
 
 elseif (${CMAKE_SYSTEM_NAME} STREQUAL "Linux")
@@ -51,13 +51,13 @@ elseif (${CMAKE_SYSTEM_NAME} STREQUAL "Linux")
         message(FATAL_ERROR "Platform ${CMAKE_SYSTEM_PROCESSOR} on system ${CMAKE_SYSTEM_NAME} is not supported!")
     endif()
 
-    if (NOT "${PROJECT_BINARY_DIR}/.local" IN_LIST "${CMAKE_PREFIX_PATH}")
-        list(APPEND CMAKE_PREFIX_PATH "${PROJECT_BINARY_DIR}/.local")
+    if (NOT "${PROJECT_BINARY_DIR}/_deps/ffmpeg-build" IN_LIST "${CMAKE_PREFIX_PATH}")
+        list(APPEND CMAKE_PREFIX_PATH "${PROJECT_BINARY_DIR}/_deps/ffmpeg-build")
     endif()
 
     FetchContent_Declare(ffmpeg
         URL  "https://github.com/BtbN/ffmpeg-Builds/releases/download/latest/${BUILT_ffmpeg_RELEASE}"
-        SOURCE_DIR "${PROJECT_BINARY_DIR}/.local"  
+        SOURCE_DIR "${PROJECT_BINARY_DIR}/_deps/ffmpeg-build"  
     )
 
 endif()
@@ -74,19 +74,25 @@ if (${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
 
 else()
 
-    message(STATUS "ffmpeg is being linked to a locally installed version")
-
     macro(find_component _component _header)
         find_path(${_component}_INCLUDE_DIRS "${_header}" PATH_SUFFIXES ffmpeg)
-        find_library(${_component}_LIBRARY NAMES "${_component}" PATH_SUFFIXES ffmpeg)
-      
+        
+        if (${CMAKE_SYSTEM_NAME} STREQUAL "Windows")
+            set(CMAKE_FIND_LIBRARY_PREFIXES "lib")
+            set(CMAKE_FIND_LIBRARY_SUFFIXES ".dll.a")
+            #message(STATUS "ffmpeg component: ${CMAKE_FIND_LIBRARY_PREFIXES}${_component}${CMAKE_FIND_LIBRARY_SUFFIXES}")
+            find_library(${_component}_LIBRARY NAMES "${CMAKE_FIND_LIBRARY_PREFIXES}${_component}${CMAKE_FIND_LIBRARY_SUFFIXES}" PATH_SUFFIXES ffmpeg)
+        else()
+            find_library(${_component}_LIBRARY NAMES "${_component}" PATH_SUFFIXES ffmpeg)            
+        endif()
+
         if (${_component}_LIBRARY AND ${_component}_INCLUDE_DIRS)
             set(ffmpeg_${_component}_FOUND TRUE)
             set(ffmpeg_LINK_LIBRARIES ${ffmpeg_LINK_LIBRARIES} "${${_component}_LIBRARY}")
             list(APPEND ffmpeg_INCLUDE_DIRS ${${_component}_INCLUDE_DIRS}) 
 
             if (NOT TARGET ffmpeg::${_component})
-                add_library(ffmpeg_${_component} UNKNOWN IMPORTED)
+                add_library(ffmpeg_${_component} STATIC IMPORTED)
                 set_target_properties(ffmpeg_${_component} PROPERTIES
                     INTERFACE_INCLUDE_DIRECTORIES "${${_component}_INCLUDE_DIRS}"
                     IMPORTED_LOCATION "${${_component}_LIBRARY}"
@@ -105,7 +111,7 @@ else()
     endif ()
 
     # Traverse the user-selected components of the package and find them
-    set(ffmpeg_INCLUDE_DIRS "${PROJECT_BINARY_DIR}/.local/include")
+    set(ffmpeg_INCLUDE_DIRS "${PROJECT_BINARY_DIR}/_deps/ffmpeg-build/include")
     set(ffmpeg_LINK_LIBRARIES)
 
     foreach(_component ${ffmpeg_FIND_COMPONENTS})
@@ -113,6 +119,8 @@ else()
     endforeach()
     mark_as_advanced(ffmpeg_INCLUDE_DIRS)
     mark_as_advanced(ffmpeg_LINK_LIBRARIES)
+
+    #message(STATUS "ffmpeg lib paths: ${ffmpeg_LINK_LIBRARIES}")
 
     # Handle findings
     list(LENGTH ffmpeg_FIND_COMPONENTS ffmpeg_COMPONENTS_COUNT)
