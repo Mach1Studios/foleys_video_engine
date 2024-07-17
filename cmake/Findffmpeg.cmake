@@ -23,7 +23,7 @@ if (${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
 
 elseif (${CMAKE_SYSTEM_NAME} STREQUAL "Windows" AND ${CMAKE_SYSTEM_PROCESSOR} STREQUAL "AMD64")
     
-    set(BUILT_ffmpeg_RELEASE "ffmpeg-master-latest-win64-lgpl-shared.zip")
+    set(BUILT_ffmpeg_RELEASE "ffmpeg-n4.4.2-95-ga8f16d4eb4-win64-lgpl-shared-4.4.zip")
 
     if(NOT BUILT_ffmpeg_RELEASE)
         message(FATAL_ERROR "Platform ${CMAKE_SYSTEM_PROCESSOR} on system ${CMAKE_SYSTEM_NAME} is not supported!")
@@ -35,7 +35,7 @@ elseif (${CMAKE_SYSTEM_NAME} STREQUAL "Windows" AND ${CMAKE_SYSTEM_PROCESSOR} ST
     message(STATUS "ffmpeg download path: ${PROJECT_BINARY_DIR}/_deps/ffmpeg-build")
 
     FetchContent_Declare(ffmpeg
-        URL  "https://github.com/BtbN/ffmpeg-Builds/releases/download/latest/${BUILT_ffmpeg_RELEASE}"
+        URL  "https://github.com/BtbN/ffmpeg-Builds/releases/download/autobuild-2022-09-30-12-41/${BUILT_ffmpeg_RELEASE}"
         SOURCE_DIR "${PROJECT_BINARY_DIR}/_deps/ffmpeg-build"  
     )
 
