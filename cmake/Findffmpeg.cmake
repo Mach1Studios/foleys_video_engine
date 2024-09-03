@@ -23,7 +23,7 @@ if (${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
 
 elseif (${CMAKE_SYSTEM_NAME} STREQUAL "Windows" AND ${CMAKE_SYSTEM_PROCESSOR} STREQUAL "AMD64")
     
-    set(BUILT_ffmpeg_RELEASE "ffmpeg-n4.4.3-2-ga54187b7d9-win64-gpl-4.4.zip")
+    set(BUILT_ffmpeg_RELEASE "ffmpeg-n4.4.3-2-ga54187b7d9-win64-gpl-shared-4.4.zip")
 
     if(NOT BUILT_ffmpeg_RELEASE)
         message(FATAL_ERROR "Platform ${CMAKE_SYSTEM_PROCESSOR} on system ${CMAKE_SYSTEM_NAME} is not supported!")
