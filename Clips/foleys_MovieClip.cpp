@@ -273,7 +273,7 @@ void MovieClip::setNextReadPosition (juce::int64 samples)
     if (movieReader && sampleRate > 0)
     {
         auto time = samples / sampleRate;
-        if (sampleRate == movieReader->sampleRate)
+        if (sampleRate == movieReader->sampleRate || !movieReader->hasAudio())
         {
             movieReader->setPosition (samples);
         }
