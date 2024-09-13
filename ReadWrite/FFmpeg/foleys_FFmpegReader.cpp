@@ -185,36 +185,30 @@ public:
 
     void setPosition (int64_t position)
     {
+        if (!formatContext) {
+            return;
+        }
+        
+        if (position < 0) {
+            position = 0;
+        }
+        
+        // this seems to be designed for skipping to a nearest keyframe of a video
         FOLEYS_LOG ("Seek for timestamp  position: " << position);
-
+        
+        // -1 for stream index is the default stream of the media file
         auto response = av_seek_frame (formatContext, audioStreamIdx, position, AVSEEK_FLAG_BACKWARD);
         if (response < 0)
         {
             FOLEYS_LOG ("Error seeking in audio stream: " << getErrorString (response));
         }
-
-         
+        
         // Flush the decoders
         if (videoContext)
             avcodec_flush_buffers(videoContext);
         if (audioContext)
             avcodec_flush_buffers(audioContext);
 
-        // Read frames until we reach the desired position
-        AVPacket packet;
-        av_init_packet(&packet);
-        while (av_read_frame(formatContext, &packet) >= 0)
-        {
-            if (packet.stream_index == videoStreamIdx)
-            {
-                if (packet.pts >= position)
-                {
-                    av_packet_unref(&packet);
-                    break;
-                }
-            }
-            av_packet_unref(&packet);
-        }
     }
 
     juce::Image getStillImage (double seconds, Size size)

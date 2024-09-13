@@ -18,6 +18,10 @@
  ==============================================================================
  */
 
+#ifndef DBL_EPSILON
+#define DBL_EPSILON 2.2204460492503131e-16
+#endif
+
 namespace foleys
 {
 
@@ -109,7 +113,7 @@ double MovieClip::getLengthInSeconds() const
 
 double MovieClip::getCurrentTimeInSeconds() const
 {
-    return sampleRate == 0 ? 0 : nextReadPosition / sampleRate;
+    return (std::fabs(sampleRate - 0) < DBL_EPSILON) ? 0 : nextReadPosition / sampleRate;
 }
 
 VideoFrame& MovieClip::getFrame (double pts)
@@ -273,7 +277,7 @@ void MovieClip::setNextReadPosition (juce::int64 samples)
     if (movieReader && sampleRate > 0)
     {
         auto time = samples / sampleRate;
-        if (sampleRate == movieReader->sampleRate || !movieReader->hasAudio())
+        if (std::fabs(sampleRate - movieReader->sampleRate) < DBL_EPSILON || !movieReader->hasAudio())
         {
             movieReader->setPosition (samples);
         }
