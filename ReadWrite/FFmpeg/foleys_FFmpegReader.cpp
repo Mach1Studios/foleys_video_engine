@@ -183,24 +183,42 @@ public:
         av_packet_unref (&packet);
     }
 
-    void setPosition (int64_t position)
+    void setPosition (double pos_in_seconds)
     {
         if (!formatContext) {
             return;
         }
         
-        if (position < 0) {
-            position = 0;
+        // position should not be a negative value
+        if (pos_in_seconds < 0) {
+            pos_in_seconds = 0;
         }
         
-        // this seems to be designed for skipping to a nearest keyframe of a video
-        FOLEYS_LOG ("Seek for timestamp  position: " << position);
+        // Calculate global timestamp
+        int64_t target_timestamp = pos_in_seconds * AV_TIME_BASE;
+
+        // Rescale timestamps for streams
+        int64_t video_ts = av_rescale_q(target_timestamp, AV_TIME_BASE_Q, videoContext->time_base);
+        int64_t audio_ts = av_rescale_q(target_timestamp, AV_TIME_BASE_Q, audioContext->time_base);
+
+        FOLEYS_LOG ("Seek for time in seconds: " << position << ", as audio timestamp: " << audio_ts << ", and video timestamp: " << video_ts);
+
+        // Be cautious: seeking to non-keyframes can result in visual artifacts until the next keyframe is decoded because frames depend on previous frames for full reconstruction.
+        int seek_flags = AVSEEK_FLAG_BACKWARD | AVSEEK_FLAG_ANY;
         
-        // -1 for stream index is the default stream of the media file
-        auto response = av_seek_frame (formatContext, audioStreamIdx, position, AVSEEK_FLAG_BACKWARD);
-        if (response < 0)
+        // Seek video stream
+        auto response_video = av_seek_frame(formatContext, videoStreamIdx, video_ts, seek_flags);
+        if (response_video < 0)
         {
-            FOLEYS_LOG ("Error seeking in audio stream: " << getErrorString (response));
+            FOLEYS_LOG ("Error seeking in audio stream: " << getErrorString (response_video));
+        }
+        
+        // Seek audio stream
+        //int64_t desired_sample_index = desired_time_in_seconds * audio_codec_context->sample_rate;
+        auto response_audio = av_seek_frame(formatContext, audioStreamIdx, audio_ts, seek_flags);
+        if (response_audio < 0)
+        {
+            FOLEYS_LOG ("Error seeking in audio stream: " << getErrorString (response_audio));
         }
         
         // Flush the decoders
@@ -567,9 +585,9 @@ double FFmpegReader::getLengthInSeconds() const
     return pimpl->getLengthInSeconds();
 }
 
-void FFmpegReader::setPosition (const int64_t position)
+void FFmpegReader::setPosition (double pos_in_seconds)
 {
-    pimpl->setPosition (position);
+    pimpl->setPosition (pos_in_seconds);
 }
 
 juce::Image FFmpegReader::getStillImage (double seconds, Size size)

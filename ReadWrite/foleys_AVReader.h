@@ -50,9 +50,9 @@ public:
     virtual juce::int64 getTotalLength() const = 0;
 
     /**
-     Seek the reader to a certain position. This position is given in audio samples
+     Seek the reader to a certain position. This position is given as time in seconds, the function itself rescales the time into timestamps
      */
-    virtual void setPosition (const int64_t position) = 0;
+    virtual void setPosition (double pos_in_seconds) = 0;
 
     /** This method allows direct access to a specific time to render thumbnails.
         Don't use this to stream the video. Ideally use a separate reader for the

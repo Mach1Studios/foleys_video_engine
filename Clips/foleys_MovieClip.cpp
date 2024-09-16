@@ -274,17 +274,11 @@ void MovieClip::setNextReadPosition (juce::int64 samples)
 
     nextReadPosition = samples;
     audioFifo.setPosition (samples);
+    double time = samples / sampleRate;
+
     if (movieReader && sampleRate > 0)
     {
-        auto time = samples / sampleRate;
-        if (std::fabs(sampleRate - movieReader->sampleRate) < DBL_EPSILON || !movieReader->hasAudio())
-        {
-            movieReader->setPosition (samples);
-        }
-        else
-        {
-            movieReader->setPosition (juce::int64 (time * movieReader->sampleRate));
-        }
+        movieReader->setPosition (time);
     }
 
     videoFifo.clear();

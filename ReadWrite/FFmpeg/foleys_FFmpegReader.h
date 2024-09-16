@@ -35,7 +35,7 @@ public:
     juce::int64 getTotalLength() const override;
     double getLengthInSeconds() const override;
 
-    void setPosition (const int64_t position) override;
+    void setPosition (double pos_in_seconds) override;
 
     juce::Image getStillImage (double seconds, Size size) override;
 
