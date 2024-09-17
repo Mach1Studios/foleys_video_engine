@@ -201,7 +201,7 @@ public:
         int64_t video_ts = av_rescale_q(target_timestamp, AV_TIME_BASE_Q, videoContext->time_base);
         int64_t audio_ts = av_rescale_q(target_timestamp, AV_TIME_BASE_Q, audioContext->time_base);
 
-        FOLEYS_LOG ("Seek for time in seconds: " << position << ", as audio timestamp: " << audio_ts << ", and video timestamp: " << video_ts);
+        FOLEYS_LOG ("Seek for time in seconds: " << pos_in_seconds << ", as audio timestamp: " << audio_ts << ", and video timestamp: " << video_ts);
 
         // Be cautious: seeking to non-keyframes can result in visual artifacts until the next keyframe is decoded because frames depend on previous frames for full reconstruction.
         int seek_flags = AVSEEK_FLAG_BACKWARD | AVSEEK_FLAG_ANY;
