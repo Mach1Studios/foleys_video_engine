@@ -30,6 +30,11 @@ namespace foleys
 class FFmpegReader::Pimpl
 {
 public:
+    
+    bool hasSeeked = false;
+    int64_t targetVideoTimestamp = 0;
+    int64_t targetAudioTimestamp = 0;
+
     Pimpl (FFmpegReader& readerToUse, juce::File file, StreamTypes type)  : reader (readerToUse)
     {
         frame = av_frame_alloc();
@@ -165,6 +170,7 @@ public:
         av_init_packet (&packet);
 
         auto error = av_read_frame (formatContext, &packet);
+        //DBG ("Packet is stream: " + juce::String (packet.stream_index));
 
         if (error >= 0) {
             if (packet.stream_index == videoStreamIdx) {
@@ -198,27 +204,19 @@ public:
         int64_t target_timestamp = pos_in_seconds * AV_TIME_BASE;
 
         // Rescale timestamps for streams
-        int64_t video_ts = av_rescale_q(target_timestamp, AV_TIME_BASE_Q, videoContext->time_base);
-        int64_t audio_ts = av_rescale_q(target_timestamp, AV_TIME_BASE_Q, audioContext->time_base);
+        targetVideoTimestamp = av_rescale_q(target_timestamp, AV_TIME_BASE_Q, videoContext->time_base);
+        targetAudioTimestamp = av_rescale_q(target_timestamp, AV_TIME_BASE_Q, audioContext->time_base);
 
-        FOLEYS_LOG ("Seek for time in seconds: " << pos_in_seconds << ", as audio timestamp: " << audio_ts << ", and video timestamp: " << video_ts);
+        FOLEYS_LOG ("Seek for time in seconds: " << pos_in_seconds << ", as audio timestamp: " << targetAudioTimestamp << ", and video timestamp: " << targetVideoTimestamp);
 
         // Be cautious: seeking to non-keyframes can result in visual artifacts until the next keyframe is decoded because frames depend on previous frames for full reconstruction.
-        int seek_flags = AVSEEK_FLAG_BACKWARD | AVSEEK_FLAG_ANY;
+        int seek_flags = AVSEEK_FLAG_BACKWARD;
         
-        // Seek video stream
-        auto response_video = av_seek_frame(formatContext, videoStreamIdx, video_ts, seek_flags);
-        if (response_video < 0)
+        // Seek all streams (via -1 arg)
+        auto response = av_seek_frame(formatContext, -1, target_timestamp, seek_flags);
+        if (response < 0)
         {
-            FOLEYS_LOG ("Error seeking in audio stream: " << getErrorString (response_video));
-        }
-        
-        // Seek audio stream
-        //int64_t desired_sample_index = desired_time_in_seconds * audio_codec_context->sample_rate;
-        auto response_audio = av_seek_frame(formatContext, audioStreamIdx, audio_ts, seek_flags);
-        if (response_audio < 0)
-        {
-            FOLEYS_LOG ("Error seeking in audio stream: " << getErrorString (response_audio));
+            FOLEYS_LOG ("Error seeking in audio stream: " << getErrorString (response));
         }
         
         // Flush the decoders
@@ -226,7 +224,9 @@ public:
             avcodec_flush_buffers(videoContext);
         if (audioContext)
             avcodec_flush_buffers(audioContext);
-
+        
+        // Set the seeking flag
+        hasSeeked = true;
     }
 
     juce::Image getStillImage (double seconds, Size size)
@@ -444,18 +444,30 @@ private:
             response = avcodec_receive_frame(videoContext, frame);
             if (response >= 0)
             {
-                AVRational timeBase = av_make_q (1, AV_TIME_BASE);
-                if (juce::isPositiveAndBelow (videoStreamIdx, static_cast<int> (formatContext->nb_streams)))
+                int64_t frameTimestamp = (frame->pts != AV_NOPTS_VALUE) ? frame->pts : frame->best_effort_timestamp;
+
+                // Check if we're seeking and the frame is before the target timestamp
+                if (hasSeeked && frameTimestamp < targetVideoTimestamp)
                 {
-                    timeBase = formatContext->streams [videoStreamIdx]->time_base;
+                    av_frame_unref(frame);
+                    continue; // Skip this frame
+                }
+                else
+                {
+                    hasSeeked = false; // We've reached the target frame
                 }
 
+                AVRational timeBase = av_make_q (1, AV_TIME_BASE);
+                if (juce::isPositiveAndBelow (videoStreamIdx, static_cast<int> (formatContext->nb_streams)))
+                timeBase = formatContext->streams [videoStreamIdx]->time_base;
+                
+                // Process the frame
                 auto& target = videoFifo.getWritingFrame();
                 if (target.image.getWidth() != frame->width || target.image.getHeight() != frame->height)
                     target.image = juce::Image (juce::Image::ARGB, frame->width, frame->height, false);
 
                 scaler.convertFrameToImage (target.image, frame);
-                target.timecode = frame->best_effort_timestamp;
+                target.timecode = frameTimestamp;
                 videoFifo.finishWriting();
 
                 FOLEYS_LOG ("Stream " << juce::String (packet.stream_index) <<
@@ -477,7 +489,48 @@ private:
         while (response >= 0)
         {
             response = avcodec_receive_frame (audioContext, frame);
-            if (response == AVERROR(EAGAIN) || response == AVERROR_EOF)
+            
+            if (response >= 0) {
+                int64_t frameTimestamp = (frame->pts != AV_NOPTS_VALUE) ? frame->pts : frame->best_effort_timestamp;
+
+                // Check if we're seeking and the frame is before the target timestamp
+                if (hasSeeked && frameTimestamp < targetAudioTimestamp)
+                {
+                    av_frame_unref(frame);
+                    continue; // Skip this frame
+                }
+                else
+                {
+                    hasSeeked = false; // We've reached the target frame
+                }
+                
+                if (frame->extended_data != nullptr  && reader.sampleRate > 0)
+                {
+                    const int  channels     = av_get_channel_layout_nb_channels (frame->channel_layout);
+                    const auto numSamples   = frame->nb_samples;
+                    const auto outTimestamp = int64_t (frameTimestamp * outputSampleRate / reader.sampleRate);
+                    const auto numProduced  = int (numSamples * outputSampleRate / reader.sampleRate);
+                    
+                    jassert (std::abs (audioFifo.getWritePosition() - outTimestamp) < std::numeric_limits<int>::max());
+                    auto offset = int (audioFifo.getWritePosition() - outTimestamp);
+                    
+                    if (audioConvertBuffer.getNumChannels() != channels || audioConvertBuffer.getNumSamples() < numProduced)
+                        audioConvertBuffer.setSize (channels, numProduced, false, false, true);
+                    
+                    if (outTimestamp < 0)
+                        return;
+                    
+                    // FIXME: add a strategy to smooth back to zero
+                    offset = 0;
+                    
+                    swr_convert (audioConverterContext,
+                                 (uint8_t**)audioConvertBuffer.getArrayOfWritePointers(), numProduced,
+                                 (const uint8_t**)frame->extended_data, numSamples);
+                    juce::AudioBuffer<float> buffer (audioConvertBuffer.getArrayOfWritePointers(), channels, int (offset), int (numProduced - offset));
+                    audioFifo.pushSamples (buffer);
+                }
+            }
+            else if (response == AVERROR(EAGAIN) || response == AVERROR_EOF)
             {
                 break;
             }
@@ -494,32 +547,6 @@ private:
                         " Frame PTS: " << juce::String (frame->best_effort_timestamp) <<
                         " in ms: " << juce::String (frame->best_effort_timestamp * 1000.0 / reader.sampleRate) <<
                         " timebase: " << reader.sampleRate);
-
-            if (frame->extended_data != nullptr  && reader.sampleRate > 0)
-            {
-                const int  channels     = av_get_channel_layout_nb_channels (frame->channel_layout);
-                const auto numSamples   = frame->nb_samples;
-                const auto outTimestamp = int64_t (frame->best_effort_timestamp * outputSampleRate / reader.sampleRate);
-                const auto numProduced  = int (numSamples * outputSampleRate / reader.sampleRate);
-
-                jassert (std::abs (audioFifo.getWritePosition() - outTimestamp) < std::numeric_limits<int>::max());
-                auto offset = int (audioFifo.getWritePosition() - outTimestamp);
-
-                if (audioConvertBuffer.getNumChannels() != channels || audioConvertBuffer.getNumSamples() < numProduced)
-                    audioConvertBuffer.setSize (channels, numProduced, false, false, true);
-
-                if (outTimestamp < 0)
-                    return;
-
-                // FIXME: add a strategy to smooth back to zero
-                offset = 0;
-
-                swr_convert (audioConverterContext,
-                             (uint8_t**)audioConvertBuffer.getArrayOfWritePointers(), numProduced,
-                             (const uint8_t**)frame->extended_data, numSamples);
-                juce::AudioBuffer<float> buffer (audioConvertBuffer.getArrayOfWritePointers(), channels, int (offset), int (numProduced - offset));
-                audioFifo.pushSamples (buffer);
-            }
         }
     }
 
