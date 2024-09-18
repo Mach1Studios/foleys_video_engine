@@ -74,7 +74,7 @@
     Set this flag to enable logging
  */
 #ifndef FOLEYS_DEBUG_LOGGING
-#define FOLEYS_DEBUG_LOGGING 0
+#define FOLEYS_DEBUG_LOGGING 1
 #endif
 
 #define FOLEYS_ENGINE_VERSION "0.2.0"
