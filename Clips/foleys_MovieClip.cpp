@@ -256,16 +256,16 @@ int MovieClip::getNumChannels() const
 
 void MovieClip::handleAsyncUpdate()
 {
-    if (sampleRate > 0 && hasVideo())
-    {
-        auto seconds = getCurrentTimeInSeconds();
-        const auto& frame = videoFifo.getFrameSeconds (seconds);
-        if (frame.timecode != lastShownFrame)
-        {
-            sendTimecode (frame.timecode, seconds, juce::sendNotificationAsync);
-            lastShownFrame = frame.timecode;
-        }
-    }
+//    if (sampleRate > 0 && hasVideo())
+//    {
+//        auto seconds = getCurrentTimeInSeconds();
+//        const auto& frame = videoFifo.getFrameSeconds (seconds);
+//        if (frame.timecode != lastShownFrame)
+//        {
+////            sendTimecode (frame.timecode, seconds, juce::sendNotificationAsync);
+//            lastShownFrame = frame.timecode;
+//        }
+//    }
 }
 
 void MovieClip::setNextReadPosition (juce::int64 samples)
