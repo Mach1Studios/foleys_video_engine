@@ -19,11 +19,11 @@ if (${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
                                 DESCRIPTION "Audio and video codecs")
     FetchContent_Declare (ffmpeg 
                           GIT_REPOSITORY "https://github.com/mach1studios/ffmpegBuild.git"
-                          GIT_TAG origin/main)
+                          GIT_TAG origin/feature/5-1-6)
 
 elseif (${CMAKE_SYSTEM_NAME} STREQUAL "Windows" AND ${CMAKE_SYSTEM_PROCESSOR} STREQUAL "AMD64")
     
-    set(BUILT_ffmpeg_RELEASE "ffmpeg-n4.4.3-2-ga54187b7d9-win64-gpl-shared-4.4.zip")
+    set(BUILT_ffmpeg_RELEASE "ffmpeg-n5.1-latest-win64-gpl-shared-5.1.zip")
 
     if(NOT BUILT_ffmpeg_RELEASE)
         message(FATAL_ERROR "Platform ${CMAKE_SYSTEM_PROCESSOR} on system ${CMAKE_SYSTEM_NAME} is not supported!")
@@ -35,16 +35,16 @@ elseif (${CMAKE_SYSTEM_NAME} STREQUAL "Windows" AND ${CMAKE_SYSTEM_PROCESSOR} ST
     message(STATUS "ffmpeg download path: ${PROJECT_BINARY_DIR}/_deps/ffmpeg-build")
 
     FetchContent_Declare(ffmpeg
-        URL  "https://github.com/BtbN/FFmpeg-Builds/releases/download/autobuild-2022-11-30-12-36/${BUILT_ffmpeg_RELEASE}"
+        URL  "https://github.com/BtbN/FFmpeg-Builds/releases/download/latest/${BUILT_ffmpeg_RELEASE}"
         SOURCE_DIR "${PROJECT_BINARY_DIR}/_deps/ffmpeg-build"  
     )
 
 elseif (${CMAKE_SYSTEM_NAME} STREQUAL "Linux")
     
     if(${CMAKE_SYSTEM_PROCESSOR} STREQUAL "x86_64" OR ${CMAKE_SYSTEM_PROCESSOR} STREQUAL "amd64")
-        set(BUILT_ffmpeg_RELEASE "ffmpeg-n4.4.3-2-ga54187b7d9-linux64-gpl-4.4.tar.xz")
+        set(BUILT_ffmpeg_RELEASE "ffmpeg-n5.1-latest-linux64-gpl-5.1.tar.xz")
     elseif(${CMAKE_SYSTEM_PROCESSOR} STREQUAL aarch64)
-        set(BUILT_ffmpeg_RELEASE "ffmpeg-n4.4.2-95-ga8f16d4eb4-linuxarm64-gpl-4.4.tar.xz")
+        set(BUILT_ffmpeg_RELEASE "ffmpeg-n5.1-latest-linuxarm64-gpl-5.1.tar.xz")
     endif()
 
     if(NOT BUILT_ffmpeg_RELEASE)
@@ -56,7 +56,7 @@ elseif (${CMAKE_SYSTEM_NAME} STREQUAL "Linux")
     endif()
 
     FetchContent_Declare(ffmpeg
-        URL  "https://github.com/BtbN/FFmpeg-Builds/releases/download/autobuild-2022-11-30-12-36/${BUILT_ffmpeg_RELEASE}"
+        URL  "https://github.com/BtbN/FFmpeg-Builds/releases/download/latest/${BUILT_ffmpeg_RELEASE}"
         SOURCE_DIR "${PROJECT_BINARY_DIR}/_deps/ffmpeg-build"  
     )
 
